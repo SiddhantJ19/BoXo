@@ -1,64 +1,83 @@
 # chat/consumers.py
 from asgiref.sync import async_to_sync
-from channels.generic.websocket import WebsocketConsumer
+from channels.generic.websocket import JsonWebsocketConsumer
 import json
 from .models import peer, hashTable, refTable
-# from channels.auth import channel_session_user
 import datetime
 
-class showDatabaseConsumer(WebsocketConsumer):
+class showDatabaseConsumer(JsonWebsocketConsumer):
 
-    # @channel_session_user
     def connect(self):
-        self.room_name = self.scope['url_route']['kwargs']['room_name']
-        self.room_group_name = 'chat_%s' % self.room_name
-        self.client = self.scope['client']
+        async_to_sync(self.channel_layer.group_add)('active',self.channel_name)
+        self.accept() 
         
-        print(self.client[0])
-        # Join room group
-        async_to_sync(self.channel_layer.group_add)(
-            self.room_group_name,
-            self.channel_name
-        )
-
-        peerid, active = peer.objects.get_or_create(peer_ip=self.client[0], active=False) 
-        print(peer.objects.all())   
-        self.accept()
-
 
     def disconnect(self, close_code):
-        # Leave room group
-        peer_inactive = peer.objects.get(peer_ip=self.client[0])
-        peer_inactive.active = False
-        peer_inactive.save()
 
         async_to_sync(self.channel_layer.group_discard)(
-            self.room_group_name,
+            'active',
             self.channel_name
         )
 
     # Receive message from WebSocket
-    def receive(self, text_data):
-        text_data_json = json.loads(text_data)
-        query = text_data_json['query']
-        filehash = text_data_json['hash']
+    def receive_json(self, content):
 
-        if query == 'Search':
-            response = refTable.objects.filter(filehash=filehash)
-            save_table = hashTable.objects.filter(filehash=filehash).update(lastuseddate=datetime.date.today)
-            save_table.save()
-
-        elif query == 'Share':
-            size = text_data_json['size']
-            '''
-            Fill this
-            '''
-
-        # Send message to room group
-        async_to_sync(self.channel_layer.group_send)(
-            self.room_group_name,
-            {
-                'type': 'response',
-                'response': response
+        '''
+            Message= {
+            'command': Share/Unshare/Search
+            'hash' : filehash -Share/unshare
+            'size' : filesize  -share
+            'Filename':filename -search/share/unshare
             }
-        )
+            -->>Share
+            self.client = self.scope['client'] --> store in database
+            Shareddate - scope
+            lastuseddate - same
+        '''
+        command = content.get("command", None)
+        if command =='Share':
+            print(content)
+            print("debug111")
+            peerid = self.scope['client'][0]
+            shareddate = datetime.date.today
+            lastuseddate = datetime.date.today  
+            file_obj, file_obj_created  =  hashTable.objects.get_or_create(filename=content['filename'],
+                                                                            filehash=content['hash'], 
+                                                                             size=content['size'], 
+                                                                             defaults={'shareddate': shareddate,
+                                                                                        'lastuseddate':lastuseddate})
+            print("debug")
+            file_obj.save()
+
+            peer_obj, peer_obj_created = peer.objects.get_or_create(peer_ip=peerid)
+            peer_obj.save()
+
+            refTableobj, refTableobj_created = refTable.objects.get_or_create(peer=peer_obj, filehash=file_obj)
+            refTableobj.save()
+
+            self.send_json({
+                "message" : "Stored in database"
+                })
+
+        elif command == 'Unshare':
+            pass
+        
+        elif command == 'Search':
+            filename = content['filename']
+            get_fileinfo =  hashTable.objects.filter(filename__contains=filename).values('filename','filehash','size')
+            
+            # print(get_fileinfo)
+            # print([file['filehash'] for file in get_fileinfo])
+            # for file in get_fileinfo:
+            # get_peerinfo = refTable.objects.filter(filehash__filehash__in=[file['filehash'] for file in get_fileinfo]).values('filehash__filehash','peer')
+            # print(get_peerinfo)
+            get_peerinfo = refTable.objects.filter(filehash__filehash__in=[file['filehash'] for file in get_fileinfo]).values('filehash__filehash','filehash__size','peer__peer_ip')
+
+            # print(get_peerinfo)
+            # data = serializers.serialize('json', get_peerinfo)
+            print(list(get_peerinfo))
+            self.send_json({ 
+                "Peer_List" : list(get_peerinfo),
+                })
+
+
