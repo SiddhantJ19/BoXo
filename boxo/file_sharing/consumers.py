@@ -13,7 +13,6 @@ class showDatabaseConsumer(JsonWebsocketConsumer):
         
 
     def disconnect(self, close_code):
-
         async_to_sync(self.channel_layer.group_discard)(
             'active',
             self.channel_name
@@ -65,16 +64,8 @@ class showDatabaseConsumer(JsonWebsocketConsumer):
         elif command == 'Search':
             filename = content['filename']
             get_fileinfo =  hashTable.objects.filter(filename__contains=filename).values('filename','filehash','size')
-            
-            # print(get_fileinfo)
-            # print([file['filehash'] for file in get_fileinfo])
-            # for file in get_fileinfo:
-            # get_peerinfo = refTable.objects.filter(filehash__filehash__in=[file['filehash'] for file in get_fileinfo]).values('filehash__filehash','peer')
-            # print(get_peerinfo)
+            print(get_fileinfo.query)
             get_peerinfo = refTable.objects.filter(filehash__filehash__in=[file['filehash'] for file in get_fileinfo]).values('filehash__filehash','filehash__size','peer__peer_ip')
-
-            # print(get_peerinfo)
-            # data = serializers.serialize('json', get_peerinfo)
             print(list(get_peerinfo))
             self.send_json({ 
                 "Peer_List" : list(get_peerinfo),

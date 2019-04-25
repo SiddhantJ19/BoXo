@@ -52,17 +52,17 @@
 
     document.querySelector('#chat-message-submit').onclick = function(e) {
         
-        var select = ['Wolf_','Captain_America_','Bradpitt_','CCNnotes_']
+        var select = ['Colaa','Avengers_','Lucifer','DBMS_Notes', 'Boderline_', 'Mario_']
         var i;
 
-        for(i=0;i<4;i++){
+        for(i=0;i<6;i++){
             var j;
             for(j=0;j<25;j++){
                 hash = select[i]+Math.random().toString(36).slice(2)
               chatSocket.send(JSON.stringify({
                 'command' : 'Share',
                 'hash': Math.random().toString(36).slice(2),
-                'size' : 123,
+                'size' : Math.random() * 1000,
                 'filename' : hash
         }));
     }}
