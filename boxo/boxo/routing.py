@@ -1,9 +1,15 @@
 from channels.auth import AuthMiddlewareStack
+from channels.http import AsgiHandler
 from channels.routing import ProtocolTypeRouter, URLRouter
-import file_sharing.routing
+from file_sharing.routing import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
 'websocket':AuthMiddlewareStack(
-	URLRouter(file_sharing.routing.websocket_urlpatterns)
+	URLRouter(websocket_urlpatterns)
 	),
+'http':AsgiHandler,
 })
+
+# Only websockets are required
+# Any http requests will be taken care by django views
+# AuthMiddleware stack -> standard django authentication -> stores users details in Sessions
