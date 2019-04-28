@@ -31,31 +31,21 @@ class Tracker(AsyncJsonWebsocketConsumer):
 	    for us and pass it as the first argument.
 	    """
 	    # Messages will have a "command" key we can switch on
-		command = content.get('command', None)
+		command = content.get('COMMAND', None)
 		try:
-			if command == 'Search':
-				fileInfo = await Search(content['FileName'])
-				if fileInfo
-
-			elif command == 'Share':
-				fileInfo = await Share(content)
+			if command == 'SEARCH':
+				fileInfo = await Search(content['FILENAME'])
 				if fileInfo:
-					self.send_json({'list':fileInfo})
-					# To be Continued
+					self.send_json({'message':"Following files found",'list':fileInfo})
+				else:
+					self.send_json({'message':"file not found",'list': fileInfo})
+
+			elif command == 'SHARE':
+				await Share(content)
+				
 
 			elif command == 'UnShare':
 				pass
-
-		except Exception as e:
-			raise e
-
-
-	@database_sync_to_async		
-	def Search(FileName):
-		try:
-			# .values() creates an instance of a list i.e 
-			#[{'filename':val1, 'filehash': val2}{'filename':val3, 'filehash': val4}]
-			return fileorFolder.objects.filter(file_name__contains=FileName).values()
 
 		except Exception as e:
 			raise e
@@ -64,4 +54,36 @@ class Tracker(AsyncJsonWebsocketConsumer):
 		This function recieves query_type variable and does corresponding tasks.
 		query_type = [Share, Search, Unshare]
 		Write Exceptions
+		Cli Client to be made
 		''' 
+
+	@database_sync_to_async		
+	def Search(FILENAME):
+		try:
+			# .values() creates an instance of a list i.e 
+			#[{'filename':val1, 'filehash': val2}{'filename':val3, 'filehash': val4}]
+			return fileorFolder.objects.filter(file_name__contains=FILENAME).values()
+
+		except Exception as e:
+			raise e
+
+
+	@database_sync_to_async
+	def Share(content):
+		try:
+				fileorFolder.objects.get_or_create(file_hash=content['FILEHASH'], 
+													defaults={'file_name':content['FILENAME'],
+																'size':content['SIZE'],
+																})
+				'''
+				If file hash already exists 
+				-> Check if peer already exists -> yes: Do Nothing
+												-> no: Append Peer
+				If File hash doesn't exist add file
+
+				create a queing mechanism for chunking and hashes of chunks
+
+				Downloading 
+				'''
+			except Exception as e:
+				raise e	
