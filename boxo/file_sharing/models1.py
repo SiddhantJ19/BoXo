@@ -6,6 +6,7 @@ class fileorFolder(models.Model):
 	"""
 	file_name = models.CharField(max_length=100)
 	file_hash = models.CharField(max_length=100, primary_key =True)
+	file_size = models.IntegerField()
 	number_peers = models.IntegerField()
 
 class peer(models.Model):
